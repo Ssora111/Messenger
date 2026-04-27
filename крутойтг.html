@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Soran Messenger</title>
+    <style>
+        :root { --bg: #afbdc4; --white: #ffffff; --blue: #3390ec; --msg-my: #eeffde; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; height: 100vh; align-items: center; justify-content: center; }
+        
+        .app { display: flex; width: 95%; max-width: 1000px; height: 90vh; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        
+        /* Сбоку */
+        .sidebar { width: 280px; border-right: 1px solid #eee; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; font-weight: 600; border-bottom: 1px solid #f5f5f5; }
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { padding: 12px 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .chat-item.active { background: var(--blue); color: #fff; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; background: #eee; object-fit: cover; }
+
+        /* Чат */
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: #e7ebf0; background-image: url('https://www.transparenttextures.com/patterns/cubes.png'); }
+        .header { background: #fff; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; height: 60px; border-bottom: 1px solid #ddd; }
+        
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 12px; max-width: 70%; font-size: 15px; line-height: 1.4; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .my { align-self: flex-end; background: var(--msg-my); border-bottom-right-radius: 2px; }
+        .ai { align-self: flex-start; background: #fff; border-bottom-left-radius: 2px; }
+        
+        .input-bar { background: #fff; padding: 12px; display: flex; align-items: center; gap: 10px; }
+        input { flex: 1; border: 1px solid #ddd; padding: 10px 15px; border-radius: 20px; outline: none; }
+        .send-btn { background: var(--blue); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        .stk-btn { width: 28px; height: 28px; cursor: pointer; opacity: 0.6; }
+        .msg-stk { width: 120px; height: 120px; }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div class="sidebar">
+        <div class="sidebar-header">чаты</div>
+        <div id="chat-list" class="chat-list"></div>
+    </div>
+    
+    <div class="chat-main">
+        <div class="header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <img id="h-av" class="avatar" src="">
+                <span id="h-name" style="font-weight:600"></span>
+            </div>
+            <button onclick="clearHistory()" style="background:none; border:none; color:#999; cursor:pointer; font-size:12px;">очистить</button>
+        </div>
+
+        <div class="messages" id="box"></div>
+
+        <div class="input-bar">
+            <img src="https://s3.getstickerpack.com/storage/uploads/sticker-pack/genshin-impact-raiden-shogun-pack-01/sticker_3.png?81c8c43210e770bcb0ec027ba9a2850d" class="stk-btn" onclick="sendSticker(this.src)">
+            <input type="text" id="inp" placeholder="напиши что-нибудь..." maxlength="200">
+            <button class="send-btn" id="send">➤</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const KEY = 'soran_simple_chat';
+    const chats = {
+        's1': { name: 'Methiis', avatar: 'https://i.pinimg.com/736x/3d/2b/88/3d2b88298767f554ec8fb0bf3ce5fdd4.jpg', messages: [] },
+        'it': { name: 'Creby', avatar: 'https://i.pinimg.com/736x/37/60/07/37600771367da4a963b9f98af1dc6abc.jpg', messages: [] }
+    };
+
+    let active = 's1';
+
+    const replies = {
+        "привет": "прив",
+        "ку": "ку",
+        "пошли в роблокс": "окей в какой режим",
+        "го в роблокс": "го в какой режим хочешь",
+        "как дела": "нормально",
+        "че делаешь": "ем, а ты?",
+        "чотам": "чо",
+        "тоже": "приятного",
+        "прарар": "че",
+        "лан": "ок",
+        "спокойной ночи": "давай"
+    };
+
+    function init() {
+        const saved = localStorage.getItem(KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            Object.keys(chats).forEach(id => { if(data[id]) chats[id].messages = data[id].messages; });
+        }
+        renderSidebar();
+        select('s1');
+    }
+
+    function renderSidebar() {
+        const list = document.getElementById('chat-list');
+        list.innerHTML = '';
+        Object.keys(chats).forEach(id => {
+            const d = document.createElement('div');
+            d.className = `chat-item ${id === active ? 'active' : ''}`;
+            d.innerHTML = `<img src="${chats[id].avatar}" class="avatar"> <span>${chats[id].name}</span>`;
+            d.onclick = () => select(id);
+            list.appendChild(d);
+        });
+    }
+
+    function select(id) {
+        active = id;
+        document.getElementById('h-name').innerText = chats[id].name;
+        document.getElementById('h-av').src = chats[id].avatar;
+        renderSidebar();
+        renderMsgs();
+    }
+
+    function renderMsgs() {
+        const box = document.getElementById('box');
+        box.innerHTML = '';
+        chats[active].messages.forEach(m => {
+            const d = document.createElement('div');
+            d.className = `msg ${m.role === 'user' ? 'my' : 'ai'}`;
+            if (m.stk) d.innerHTML = `<img src="${m.text}" class="msg-stk">`;
+            else d.innerText = m.text;
+            box.appendChild(d);
+        });
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function send(text, stk = false) {
+        if (!text) return;
+        chats[active].messages.push({ role: 'user', text, stk });
+        update();
+
+        // Эффект печатания
+        const nameLabel = document.getElementById('h-name');
+        const originalName = chats[active].name;
+        nameLabel.innerText = 'печатает...';
+
+        setTimeout(() => {
+            if (!stk) {
+                const lowText = text.toLowerCase().trim();
+                let reply = "ага";
+                for (let key in replies) {
+                    if (lowText.includes(key)) {
+                        reply = replies[key];
+                        break;
+                    }
+                }
+                chats[active].messages.push({ role: 'ai', text: reply, stk: false });
+            } else {
+                chats[active].messages.push({ role: 'ai', text: "^^", stk: false });
+            }
+            
+            // Возвращаем имя назад и обновляем чат
+            nameLabel.innerText = originalName;
+            update();
+        }, 3000); // задержка 3 секунды
+    }
+
+    window.sendSticker = (src) => send(src, true);
+    window.clearHistory = () => { chats[active].messages = []; update(); };
+
+    function update() {
+        localStorage.setItem(KEY, JSON.stringify(chats));
+        renderMsgs();
+    }
+
+    document.getElementById('send').onclick = () => {
+        const i = document.getElementById('inp');
+        send(i.value);
+        i.value = '';
+    };
+
+    document.getElementById('inp').onkeydown = (e) => { if(e.key === 'Enter') document.getElementById('send').click(); };
+
+    init();
+</script>
+</body>
+</html>
